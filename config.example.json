@@ -1,0 +1,13 @@
+{
+  "organization": "your-org-name",
+  "repositories": ["repo1", "repo2", "repo3"],
+  "defaultPeriod": "quarterly",
+  "outputDirectory": "reports",
+  "excludeRepositories": [],
+  "repositoryFilters": {
+    "minCommits": 10,
+    "excludeArchived": true,
+    "excludeForks": true,
+    "minSize": 100
+  }
+}

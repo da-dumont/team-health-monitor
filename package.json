@@ -1,0 +1,28 @@
+{
+  "name": "github-ai-analyzer",
+  "version": "1.0.0",
+  "description": "Analyze GitHub repositories to measure AI coding tools impact on engineering delivery speed",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "analyze": "node src/index.js",
+    "weekly": "node src/index.js --period weekly",
+    "monthly": "node src/index.js --period monthly",
+    "quarterly": "node src/index.js --period quarterly",
+    "setup": "node src/setup.js",
+    "migrate": "node scripts/migrate-config.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.0.2",
+    "dotenv": "^16.3.1",
+    "date-fns": "^3.0.6",
+    "commander": "^11.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["github", "analytics", "ai", "productivity", "metrics", "delivery", "engineering", "devops", "ci-cd"],
+  "author": "GitHub AI Analyzer Contributors",
+  "license": "MIT"
+}
