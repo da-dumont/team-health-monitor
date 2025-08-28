@@ -11,7 +11,8 @@
     "monthly": "node src/index.js --period monthly",
     "quarterly": "node src/index.js --period quarterly",
     "setup": "node src/setup.js",
-    "migrate": "node scripts/migrate-config.js"
+    "migrate": "node scripts/migrate-config.js",
+    "check-limits": "node src/index.js --check-limits"
   },
   "dependencies": {
     "@octokit/rest": "^20.0.2",

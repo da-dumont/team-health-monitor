@@ -275,9 +275,7 @@ function getDateRangePresets() {
   return {
     weekly: 7,
     monthly: 30,
-    quarterly: 90,
-    '6months': 180,
-    yearly: 365
+    quarterly: 90
   };
 }
 
@@ -290,7 +288,7 @@ async function main() {
     .version('1.0.0')
     .option('-r, --repos <repos>', 'Comma-separated list of repositories to analyze')
     .option('-o, --org <organization>', 'GitHub organization name')
-    .option('-p, --period <preset>', 'Time period preset (weekly, monthly, quarterly, 6months, yearly)', 'quarterly')
+    .option('-p, --period <preset>', 'Time period preset (weekly, monthly, quarterly)', 'quarterly')
     .option('-d, --days <days>', 'Custom number of days for current analysis period')
     .option('--compare-days <days>', 'Number of days for comparison period (defaults to same as current period)')
     .option('--gap-days <days>', 'Number of gap days between current and comparison periods', '0')
@@ -298,6 +296,7 @@ async function main() {
     .option('--discover-repos', 'Auto-discover repositories for the organization')
     .option('--discover-active', 'Only discover repositories with recent activity')
     .option('--setup', 'Run interactive setup to create configuration file')
+    .option('--check-limits', 'Check current GitHub API rate limit status')
     .parse();
 
   const options = program.opts();
@@ -306,6 +305,14 @@ async function main() {
   if (options.setup) {
     const { runSetup } = require('./setup');
     await runSetup();
+    return;
+  }
+  
+  // Handle rate limit check mode
+  if (options.checkLimits) {
+    console.log('🔍 Checking GitHub API Rate Limits...\n');
+    const client = new GitHubClient();
+    await client.checkRateLimit();
     return;
   }
   
@@ -382,6 +389,11 @@ async function main() {
       console.error('❌ Days must be a positive number');
       process.exit(1);
     }
+    if (currentPeriodDays > 90) {
+      console.error('❌ Maximum analysis period is 90 days');
+      console.log('💡 Use --period quarterly for 90-day analysis');
+      process.exit(1);
+    }
   } else {
     const presets = getDateRangePresets();
     currentPeriodDays = presets[options.period];
@@ -398,6 +410,10 @@ async function main() {
     previousPeriodDays = parseInt(options.compareDays);
     if (isNaN(previousPeriodDays) || previousPeriodDays <= 0) {
       console.error('❌ Compare days must be a positive number');
+      process.exit(1);
+    }
+    if (previousPeriodDays > 90) {
+      console.error('❌ Maximum comparison period is 90 days');
       process.exit(1);
     }
   }

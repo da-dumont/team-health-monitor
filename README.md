@@ -44,6 +44,9 @@ This tool analyzes GitHub repositories to provide insights into team performance
    npm run weekly         # Weekly analysis  
    npm run monthly        # Monthly analysis
    npm run quarterly      # Quarterly analysis
+   
+   # Check API rate limits before large analyses
+   npm run check-limits
    ```
 
 ## Usage Options
@@ -58,15 +61,14 @@ node src/index.js --repos "web-app,api-service"
 node src/index.js --period weekly     # Last 7 vs previous 7 days
 node src/index.js --period monthly    # Last 30 vs previous 30 days
 node src/index.js --period quarterly  # Last 90 vs previous 90 days (default)
-node src/index.js --period 6months    # Last 180 vs previous 180 days
-node src/index.js --period yearly     # Last 365 vs previous 365 days
 
-# Custom time period
+# Custom time period (max 90 days)
 node src/index.js --days 45           # Last 45 vs previous 45 days
+node src/index.js --days 90           # Last 90 vs previous 90 days
 
-# Custom comparison periods
+# Custom comparison periods (max 90 days each)
 node src/index.js --days 42 --compare-days 42    # Last 6 weeks vs previous 6 weeks
-node src/index.js --days 30 --compare-days 60    # Last month vs previous 2 months
+node src/index.js --days 30 --compare-days 90    # Last month vs previous 3 months
 node src/index.js --days 14 --compare-days 14 --gap-days 7  # Last 2 weeks vs 2 weeks before (with 1 week gap)
 
 # Different organization
@@ -89,19 +91,27 @@ node src/index.js --repos "web-app,api-service" --days 42 --compare-days 42 --ou
 
 - `--repos, -r`: Comma-separated list of repositories to analyze
 - `--org, -o`: GitHub organization name
-- `--period, -p`: Time period preset (weekly, monthly, quarterly, 6months, yearly)
-- `--days, -d`: Custom number of days for current analysis period
-- `--compare-days`: Number of days for comparison period (defaults to same as current period)
+- `--period, -p`: Time period preset (weekly, monthly, quarterly)
+- `--days, -d`: Custom number of days for current analysis period (max 90 days)
+- `--compare-days`: Number of days for comparison period (max 90 days, defaults to same as current period)
 - `--gap-days`: Number of gap days between current and comparison periods (default: 0)
 - `--output-dir`: Output directory for reports (default: reports)
 - `--discover-repos`: Auto-discover all repositories for the organization
 - `--discover-active`: Only discover repositories with recent activity
 - `--setup`: Run interactive setup to create configuration file
+- `--check-limits`: Check current GitHub API rate limit status
 - `--help`: Show help information
+
+### Data Analysis Limits
+
+**Maximum Time Period: 90 Days**
+- All analysis periods are limited to 90 days maximum
+- Both current and comparison periods respect this limit
+- Use quarterly preset for maximum 90-day analysis
 
 ### Flexible Time Comparisons
 
-The analyzer now supports flexible time period comparisons:
+The analyzer supports flexible time period comparisons within the 90-day limit:
 
 **Same Period Length (Default)**:
 ```bash
@@ -321,6 +331,48 @@ Detailed reports saved to `reports/` directory with structure:
 }
 ```
 
+## Rate Limiting & API Management
+
+The tool includes comprehensive rate limiting protection to prevent hitting GitHub API limits:
+
+### Built-in Rate Limiting Features
+
+- **Conservative Limits**: Uses 4,500 requests/hour (vs GitHub's 5,000 limit)
+- **Burst Protection**: Limits to 100 requests/minute to prevent overwhelming the API
+- **Automatic Throttling**: Waits automatically when approaching limits
+- **Smart Caching**: Caches responses for 4 hours to reduce API calls
+- **Progress Feedback**: Shows warnings when approaching rate limits
+
+### Checking Your Rate Limit Status
+
+```bash
+# Check current GitHub API rate limit status
+npm run check-limits
+# Or directly:
+node src/index.js --check-limits
+```
+
+This displays:
+- Core API: remaining/total requests and reset time
+- Search API status  
+- GraphQL API status
+
+### Rate Limiting Behavior
+
+The tool will:
+1. **Cache First**: Check cache before making API requests
+2. **Auto-Throttle**: Wait when burst limits are reached
+3. **Smart Backoff**: Increase wait times if repeatedly hitting limits  
+4. **Rate Limit Headers**: Monitor GitHub's rate limit headers in real-time
+5. **Graceful Degradation**: Continue analysis even with temporary limits
+
+### Tips for Large Analyses
+
+- **Use Specific Repos**: `--repos "repo1,repo2"` instead of `--discover-repos`
+- **Smaller Time Periods**: Use weekly/monthly instead of yearly analysis
+- **Cache Benefits**: Re-running analysis uses cached data (faster, fewer API calls)
+- **Off-Peak Hours**: Run during off-peak hours for better API availability
+
 ## Troubleshooting
 
 ### Common Issues
@@ -333,6 +385,11 @@ Detailed reports saved to `reports/` directory with structure:
 - Use `--org <organization>` flag or run `npm run setup`
 - Verify you have access to the organization
 
+**❌ "Maximum analysis period is 90 days"**
+- Analysis periods are limited to 90 days for performance and API rate limiting
+- Use `--period quarterly` for maximum 90-day analysis
+- Break longer analyses into multiple 90-day periods
+
 **❌ "No repositories found matching criteria"**
 - Check organization name spelling
 - Verify repositories exist and you have access
@@ -342,7 +399,9 @@ Detailed reports saved to `reports/` directory with structure:
 **❌ "API rate limit exceeded"**
 - GitHub API allows 5,000 requests/hour for authenticated users
 - Large organizations may hit limits with `--discover-repos`
-- Wait an hour or use specific `--repos` instead of discovery
+- Check current status with `node src/index.js --check-limits`
+- Wait for reset time or use specific `--repos` instead of discovery
+- Tool automatically throttles and waits when approaching limits
 
 **❌ "Could not fetch details for PR #123"**
 - Some PRs may be inaccessible due to permissions

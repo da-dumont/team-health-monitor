@@ -5,6 +5,10 @@ require('dotenv').config();
 
 class GitHubClient {
   constructor(options = {}) {
+    if (!process.env.GITHUB_TOKEN) {
+      throw new Error('GITHUB_TOKEN environment variable is required');
+    }
+    
     this.octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN,
     });
@@ -16,11 +20,17 @@ class GitHubClient {
     });
     
     this.rateLimiter = new RateLimiter({
-      requestsPerHour: options.requestsPerHour || 4500,
+      requestsPerHour: options.requestsPerHour || 4500, // Conservative limit (GitHub allows 5000)
       burstLimit: options.burstLimit || 100
     });
     
     this.requestsThisRun = 0;
+    this.startTime = Date.now();
+    
+    // Display rate limiting info at startup
+    console.log('🔐 GitHub API Rate Limiting: Enabled');
+    console.log(`   Hourly Limit: ${this.rateLimiter.requestsPerHour} requests/hour`);
+    console.log(`   Burst Limit: ${this.rateLimiter.burstLimit} requests/minute`);
   }
 
   async makeRequest(requestFn, cacheKey = null) {
@@ -45,6 +55,12 @@ class GitHubClient {
       if (response.headers) {
         const remaining = parseInt(response.headers['x-ratelimit-remaining']);
         const reset = parseInt(response.headers['x-ratelimit-reset']);
+        
+        // Warn when getting close to limits
+        if (remaining <= 100) {
+          const resetTime = new Date(reset * 1000);
+          console.warn(`⚠️  Rate limit warning: ${remaining} requests remaining (resets at ${resetTime.toLocaleTimeString()})`);
+        }
         
         if (remaining <= 10 && reset) {
           this.rateLimiter.handleRateLimitResponse(reset);
@@ -305,6 +321,24 @@ class GitHubClient {
       };
     }
   }
+
+  // Check current GitHub API rate limit status
+  async checkRateLimit() {
+    try {
+      const response = await this.octokit.rateLimit.get();
+      const { core, graphql, search, source_import } = response.data.resources;
+      
+      console.log('\n🔍 Current GitHub API Rate Limit Status:');
+      console.log(`  Core API: ${core.remaining}/${core.limit} (resets ${new Date(core.reset * 1000).toLocaleTimeString()})`);
+      console.log(`  Search API: ${search.remaining}/${search.limit}`);
+      console.log(`  GraphQL API: ${graphql.remaining}/${graphql.limit}`);
+      
+      return response.data.resources;
+    } catch (error) {
+      console.warn('⚠️  Unable to check rate limit status:', error.message);
+      return null;
+    }
+  }
   
   // Get comprehensive statistics
   getStats() {
@@ -320,9 +354,15 @@ class GitHubClient {
   
   // Display statistics
   displayStats() {
+    const runTime = ((Date.now() - this.startTime) / 1000 / 60).toFixed(1);
+    const requestsPerMinute = this.requestsThisRun > 0 ? 
+      (this.requestsThisRun / (runTime || 1)).toFixed(1) : '0';
+    
     console.log(`
 📈 GitHub API Usage Summary:`);
     console.log(`  Requests This Run: ${this.requestsThisRun}`);
+    console.log(`  Runtime: ${runTime} minutes`);
+    console.log(`  Average Rate: ${requestsPerMinute} requests/minute`);
     
     this.rateLimiter.displayStats();
     

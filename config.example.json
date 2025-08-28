@@ -9,5 +9,6 @@
     "excludeArchived": true,
     "excludeForks": true,
     "minSize": 100
-  }
+  },
+  "_note": "All analysis periods are limited to 90 days maximum"
 }
